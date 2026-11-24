@@ -1466,7 +1466,7 @@
                         </div>
 
                         <!-- Section Breakdown -->
-                        <div class="p-6 sm:p-8 grid grid-cols-1 sm:grid-cols-${sectionResults.length} gap-4">
+                        <div class="p-6 sm:p-8 grid grid-cols-1 ${sectionResults.length === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-1'} gap-4">
                             ${sectionResults.map(r => `
                                 <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
                                     <div>
@@ -1567,4 +1567,3 @@
 </html>
 
 ```
-
