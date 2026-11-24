@@ -1,1 +1,1570 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOEFL ITP® Prep Studio — Bank Soal & Simulasi Standar ETS</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        ets: {
+                            navy: '#0F172A',
+                            blue: '#1E3A8A',
+                            accent: '#2563EB',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom Minimal Styles for Scrollbar & Waveform Animation -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Custom scrollbar for reading passage & question palette */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 9999px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Audio waveform animation */
+        @keyframes wave {
+            0%, 100% { height: 6px; }
+            50% { height: 22px; }
+        }
+        .wave-bar {
+            animation: wave 0.9s ease-in-out infinite;
+        }
+        .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.45s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.6s; }
+        .wave-paused .wave-bar {
+            animation: none;
+            height: 6px !important;
+        }
+        /* Underlined style for Written Expression (Part B) */
+        .we-segment {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            vertical-align: top;
+            margin: 0 2px;
+            line-height: 1.25;
+        }
+        .we-text {
+            border-bottom: 2px solid #334155;
+            padding-bottom: 1px;
+            font-weight: 500;
+            color: #0f172a;
+        }
+        .we-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #2563eb;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col selection:bg-blue-100 selection:text-blue-900">
+
+    <!-- ===================================================================== -->
+    <!-- MAIN APPLICATION CONTAINER                                            -->
+    <!-- ===================================================================== -->
+    <div id="app" class="flex-1 flex flex-col w-full">
+        <!-- Dynamic views will be rendered here by JavaScript -->
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- CUSTOM MODAL DIALOG (Replaces browser alert/confirm)                  -->
+    <!-- ===================================================================== -->
+    <div id="custom-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-100 transform transition-all">
+            <div class="flex items-start gap-4">
+                <div id="modal-icon-container" class="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
+                    <!-- Icon injected dynamically -->
+                </div>
+                <div class="flex-1">
+                    <h3 id="modal-title" class="text-lg font-bold text-slate-900">Konfirmasi</h3>
+                    <p id="modal-message" class="mt-1.5 text-sm text-slate-600 leading-relaxed"></p>
+                </div>
+            </div>
+            <div id="modal-actions" class="mt-6 flex items-center justify-end gap-3">
+                <!-- Buttons injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- APPLICATION LOGIC & QUESTION BANK DATA                                -->
+    <!-- ===================================================================== -->
+    <script>
+        /**
+         * =====================================================================
+         * 1. ETS TOEFL ITP® CONFIGURATION & QUESTION BANK
+         * =====================================================================
+         * Struktur data ini dirancang modular agar mudah dikembangkan/di-import
+         * dari JSON eksternal saat Anda mendeploy ke Vercel (Next.js / Static).
+         */
+        const ETS_CONFIG = {
+            sections: [
+                {
+                    id: 'listening',
+                    number: 1,
+                    title: 'Listening Comprehension',
+                    shortTitle: 'Listening',
+                    etsQuestionCount: 50,
+                    etsDurationSeconds: 35 * 60, // 35 Menit standar ETS
+                    description: 'Part A: Short Dialogues, Part B: Long Conversations, Part C: Long Talks.',
+                    directions: 'In this section of the test, you will have an opportunity to demonstrate your ability to understand conversations and talks in English. Answer all the questions on the basis of what is stated or implied by the speakers you hear.'
+                },
+                {
+                    id: 'structure',
+                    number: 2,
+                    title: 'Structure & Written Expression',
+                    shortTitle: 'Structure',
+                    etsQuestionCount: 40,
+                    etsDurationSeconds: 25 * 60, // 25 Menit standar ETS
+                    description: 'Part A: Structure (Sentence Completion) & Part B: Written Expression (Error Identification).',
+                    directions: 'This section is designed to measure your ability to recognize language that is appropriate for standard written English. There are two types of questions: Structure (Questions 1–15) and Written Expression (Questions 16–40).'
+                },
+                {
+                    id: 'reading',
+                    number: 3,
+                    title: 'Reading Comprehension',
+                    shortTitle: 'Reading',
+                    etsQuestionCount: 50,
+                    etsDurationSeconds: 55 * 60, // 55 Menit standar ETS
+                    description: 'Academic reading passages testing main ideas, stated/unstated details, vocabulary, and inference.',
+                    directions: 'In this section you will read several passages. Each one is followed by a number of questions about it. You are to choose the one best answer, (A), (B), (C), or (D), to each question.'
+                }
+            ]
+        };
+
+        /**
+         * BANK SOAL PREVIEW (Mengacu pada format ETS & Longman Complete Course)
+         * Anda dapat menambahkan hingga 140 soal (50 Listening, 40 Structure, 50 Reading)
+         * langsung ke dalam array ini atau memisahkannya ke file JSON terpisah.
+         */
+        const QUESTION_BANK = {
+            listening: [
+                {
+                    id: 'L1',
+                    part: 'Part A — Short Dialogues',
+                    skill: 'Listening Skill 1 & 2: Focus on Last Line & Synonyms',
+                    audioScript: [
+                        { role: 'man', text: 'Billy really made a big mistake this time.' },
+                        { role: 'woman', text: 'Yes, he forgot to turn in his research paper.' },
+                        { role: 'narrator', text: 'What does the woman say about Billy?' }
+                    ],
+                    question: 'Listen to the short dialogue and choose the best answer.',
+                    options: [
+                        'It was the first time he made a mistake.',
+                        'He forgot to write his paper.',
+                        'He turned in the paper in the wrong place.',
+                        'He didn\'t remember to submit his assignment.'
+                    ],
+                    correctIndex: 3,
+                    explanation: 'Fokus pada baris kedua: "he forgot to turn in his research paper." Sinonim dari "forgot" adalah "didn\'t remember", dan "turn in" berarti "submit" (mengumpulkan).'
+                },
+                {
+                    id: 'L2',
+                    part: 'Part A — Short Dialogues',
+                    skill: 'Listening Skill 3: Avoid Similar Sounds',
+                    audioScript: [
+                        { role: 'man', text: 'Why couldn\'t Mark come with us?' },
+                        { role: 'woman', text: 'He was searching for a new apartment.' },
+                        { role: 'narrator', text: 'What does the woman say about Mark?' }
+                    ],
+                    question: 'Listen to the short dialogue and choose the best answer.',
+                    options: [
+                        'He was in the department office.',
+                        'He was looking for a place to live.',
+                        'He was working on his research project.',
+                        'He had an appointment at church.'
+                    ],
+                    correctIndex: 1,
+                    explanation: 'Hindari kata dengan bunyi mirip (similar sounds) seperti "department/appointment" (mirip apartment) atau "research/church" (mirip search). "Searching for a new apartment" bersinonim dengan "looking for a place to live".'
+                },
+                {
+                    id: 'L3',
+                    part: 'Part A — Short Dialogues',
+                    skill: 'Listening Skill 7: Negative Expressions',
+                    audioScript: [
+                        { role: 'man', text: 'How did they get to their grandmother\'s house in Maine in only five hours?' },
+                        { role: 'woman', text: 'They didn\'t drive slowly on the trip to Maine.' },
+                        { role: 'narrator', text: 'What does the woman say about the trip?' }
+                    ],
+                    question: 'Listen to the short dialogue and choose the best answer.',
+                    options: [
+                        'They drove rather quickly.',
+                        'They couldn\'t have driven more slowly.',
+                        'They wanted to travel slowly to Maine.',
+                        'They didn\'t drive to Maine.'
+                    ],
+                    correctIndex: 0,
+                    explanation: 'Ekspresi negatif "didn\'t drive slowly" (tidak menyetir dengan pelan) memiliki makna positif berlawanan, yaitu "drove rather quickly" (menyetir cukup cepat).'
+                },
+                {
+                    id: 'L4',
+                    part: 'Part A — Short Dialogues',
+                    skill: 'Listening Skill 11: Expressions of Agreement',
+                    audioScript: [
+                        { role: 'man', text: 'This physics course couldn\'t be any harder.' },
+                        { role: 'woman', text: 'I\'ll say!' },
+                        { role: 'narrator', text: 'What does the woman mean?' }
+                    ],
+                    question: 'Listen to the short dialogue and choose the best answer.',
+                    options: [
+                        'She has something to say to the man.',
+                        'She doesn\'t think the physics course is hard.',
+                        'She agrees with the man.',
+                        'She\'d like to discuss the physics course.'
+                    ],
+                    correctIndex: 2,
+                    explanation: 'Ungkapan idiomatik "I\'ll say!" pada TOEFL ITP digunakan untuk menyatakan persetujuan penuh terhadap pernyataan positif pembicara pertama.'
+                },
+                {
+                    id: 'L5',
+                    part: 'Part C — Long Talks',
+                    skill: 'Listening Skill 25 & 27: Determine the Topic & Details',
+                    audioScript: [
+                        { role: 'narrator', text: 'Listen to an instructor talk to his class about painting.' },
+                        { role: 'man', text: 'Artist Grant Wood was a guiding force in the school of painting known as American regionalist, a style reflecting the distinctive characteristics of art from rural areas of the United States. Wood began drawing animals on the family farm at the age of three, and when he was thirty-eight one of his paintings received a remarkable amount of public notice and acclaim. This painting, called American Gothic, is a starkly simple depiction of a serious couple staring directly out at the viewer.' },
+                        { role: 'narrator', text: 'What style of painting is known as American regionalist?' }
+                    ],
+                    question: 'Listen to the talk and choose the best answer.',
+                    options: [
+                        'Art from America\'s inner cities',
+                        'Art from the central region of the United States',
+                        'Art from various urban areas in the United States',
+                        'Art from rural sections of America'
+                    ],
+                    correctIndex: 3,
+                    explanation: 'Dalam pembicaraan disebutkan secara eksplisit: "a style reflecting the distinctive characteristics of art from rural areas of the United States" (seni dari wilayah pedesaan Amerika).'
+                }
+            ],
+
+            structure: [
+                {
+                    id: 'S1',
+                    part: 'Part A — Structure',
+                    type: 'structure',
+                    skill: 'Structure Skill 1: Subject and Verb',
+                    question: '_______ was backed up for miles on the freeway.',
+                    options: [
+                        'Yesterday',
+                        'In the morning',
+                        'Traffic',
+                        'Cars'
+                    ],
+                    correctIndex: 2,
+                    explanation: 'Kalimat sudah memiliki kata kerja tunggal "was backed up", tetapi belum memiliki Subjek (Subject). "Traffic" adalah kata benda tunggal (uncountable noun) yang sesuai dengan "was", sedangkan "Cars" adalah jamak.'
+                },
+                {
+                    id: 'S2',
+                    part: 'Part A — Structure',
+                    type: 'structure',
+                    skill: 'Structure Skill 3: Appositives',
+                    question: '_______, George, is attending the lecture.',
+                    options: [
+                        'Right now',
+                        'Happily',
+                        'Because of the time',
+                        'My friend'
+                    ],
+                    correctIndex: 3,
+                    explanation: 'Di antara dua koma terdapat appositive "George". Kalimat membutuhkan subjek di posisi awal. "My friend" berfungsi sebagai subjek, dan "George" menjelaskan siapa teman tersebut.'
+                },
+                {
+                    id: 'S3',
+                    part: 'Part A — Structure',
+                    type: 'structure',
+                    skill: 'Structure Skill 17: Inverted Subject & Verb with Negatives',
+                    question: 'Only in extremely dangerous situations _______ stopped.',
+                    options: [
+                        'will be the printing presses',
+                        'the printing presses will be',
+                        'that the printing presses will be',
+                        'will the printing presses be'
+                    ],
+                    correctIndex: 3,
+                    explanation: 'Ketika ekspresi negatif/pembatas seperti "Only in..." berada di awal kalimat, subjek dan kata kerja bantu (auxiliary) harus dibalik (inversi): auxiliary (will) + subject (the printing presses) + verb (be).'
+                },
+                {
+                    id: 'S4',
+                    part: 'Part B — Written Expression',
+                    type: 'written_expression',
+                    skill: 'Structure Skill 20: Subject/Verb Agreement after Prepositional Phrases',
+                    prompt: 'Identify the one underlined word or phrase that must be changed in order for the sentence to be correct.',
+                    // Array segments: plain text or underlined option { label: 'A', text: '...' }
+                    segments: [
+                        'The ',
+                        { label: 'A', text: 'key' },
+                        ' to the ',
+                        { label: 'B', text: 'doors' },
+                        ' ',
+                        { label: 'C', text: 'are' },
+                        ' in the ',
+                        { label: 'D', text: 'drawer' },
+                        '.'
+                    ],
+                    options: ['(A) key', '(B) doors', '(C) are', '(D) drawer'],
+                    correctIndex: 2,
+                    explanation: 'Subjek utama kalimat ini adalah "The key" (tunggal), bukan "doors" (yang merupakan object of preposition "to"). Oleh karena itu, kata kerja (C) "are" salah dan seharusnya "is".'
+                },
+                {
+                    id: 'S5',
+                    part: 'Part B — Written Expression',
+                    type: 'written_expression',
+                    skill: 'Structure Skill 24: Parallel Structure with Coordinate Conjunctions',
+                    prompt: 'Identify the one underlined word or phrase that must be changed in order for the sentence to be correct.',
+                    segments: [
+                        'The ',
+                        { label: 'A', text: 'newly' },
+                        ' appointed manager is ',
+                        { label: 'B', text: 'sincere' },
+                        ', ',
+                        { label: 'C', text: 'nice' },
+                        ', and ',
+                        { label: 'D', text: 'he has intelligence' },
+                        '.'
+                    ],
+                    options: ['(A) newly', '(B) sincere', '(C) nice', '(D) he has intelligence'],
+                    correctIndex: 3,
+                    explanation: 'Konjungsi koordinatif "and" harus menghubungkan struktur yang paralel (setara). "sincere" dan "nice" adalah kata sifat (adjectives), maka (D) "he has intelligence" tidak paralel dan seharusnya diubah menjadi "intelligent".'
+                }
+            ],
+
+            reading: [
+                {
+                    id: 'R1',
+                    part: 'Passage 1 — American Geography',
+                    skill: 'Reading Skill 1: Main Idea Questions',
+                    passageId: 'p1',
+                    question: 'What is the main topic of this passage?',
+                    options: [
+                        'The history of the United States Army',
+                        'How a geographical error delayed the settlement of central North America',
+                        'The similarities between the Sahara Desert and the American plains',
+                        'The agricultural exports of the nineteenth century'
+                    ],
+                    correctIndex: 1,
+                    explanation: 'Kalimat pertama paragraf 1 menyatakan gagasan utama secara jelas: "The settling of the vast farmlands in central North America was delayed at least partly because of an error by one man."'
+                },
+                {
+                    id: 'R2',
+                    part: 'Passage 1 — American Geography',
+                    skill: 'Reading Skill 3: Stated Detail Questions',
+                    passageId: 'p1',
+                    question: 'According to the passage, how did Lieutenant Zebulon Pike describe the central plains in his report?',
+                    options: [
+                        'As the most fertile farmland in the world',
+                        'As an ideal location for military forts',
+                        'As a desertlike region similar to the Sahara',
+                        'As a densely populated agricultural zone'
+                    ],
+                    correctIndex: 2,
+                    explanation: 'Pada baris (4)–(6) disebutkan bahwa Pike menulis laporan yang secara keliru menyatakan dataran luas tersebut "were desertlike, comparable to the Sahara in Africa."'
+                },
+                {
+                    id: 'R3',
+                    part: 'Passage 1 — American Geography',
+                    skill: 'Reading Skill 10: Vocabulary in Context',
+                    passageId: 'p1',
+                    question: 'The word "erroneously" in line 4 is closest in meaning to',
+                    options: [
+                        'accurately',
+                        'incorrectly',
+                        'enthusiastically',
+                        'secretly'
+                    ],
+                    correctIndex: 1,
+                    explanation: 'Konteks kalimat sebelumnya menyebutkan "an error by one man" dan kalimat setelahnya menggunakan "In reality, however...". Maka "erroneously" berarti "incorrectly" (secara keliru).'
+                },
+                {
+                    id: 'R4',
+                    part: 'Passage 1 — American Geography',
+                    skill: 'Reading Skill 5: Pronoun Referents',
+                    passageId: 'p1',
+                    question: 'The word "it" in line 9 refers to',
+                    options: [
+                        'the map',
+                        'the Sahara',
+                        'the central part of the United States',
+                        'the U.S. Army'
+                    ],
+                    correctIndex: 2,
+                    explanation: 'Perhatikan klausa: "...depicted the central part of what is today the United States as a vast desert rather than the excellent and available farmland that it was." Kata ganti "it" merujuk pada "the central part of what is today the United States".'
+                },
+                {
+                    id: 'R5',
+                    part: 'Passage 1 — American Geography',
+                    skill: 'Reading Skill 6: Implied Detail Questions',
+                    passageId: 'p1',
+                    question: 'It can be inferred from the passage that settlers eventually moved to the central plains because',
+                    options: [
+                        'the desert climate suddenly became wetter',
+                        'Lieutenant Pike corrected his original maps',
+                        'they realized the land was actually very fertile',
+                        'the government forced them to leave the coasts'
+                    ],
+                    correctIndex: 2,
+                    explanation: 'Teks menyatakan keyakinan yang salah membuat para pemukim menghindari dataran tersebut selama bertahun-tahun ("for years"), padahal nyatanya tanah itu sangat subur. Dapat disimpulkan mereka akhirnya pindah setelah menyadari kesuburannya.'
+                }
+            ]
+        };
+
+        /**
+         * DATA TEKS BACAAN (READING PASSAGES)
+         * Disusun per baris agar dapat menampilkan nomor baris (5), (10) ala ETS Paper/ITP.
+         */
+        const READING_PASSAGES = {
+            p1: {
+                title: 'The Great American Desert Myth',
+                lines: [
+                    'The settling of the vast farmlands in central North America was delayed at',
+                    'least partly because of an error by one man. In the early nineteenth century,',
+                    'Lieutenant Zebulon Pike of the U.S. Army was sent out to explore and chart',
+                    'the huge expanses of land in the center of the continent. When he returned',
+                    'from his explorations, he wrote a report in which he erroneously stated that',
+                    'the vast plains in the central part of the continent were desertlike,',
+                    'comparable to the Sahara in Africa.',
+                    '    In reality, however, these vast plains contained some of the most fertile',
+                    'farmland in the world. Because of Pike\'s mistake, the maps of the day',
+                    'depicted the central part of what is today the United States as a vast desert',
+                    'rather than the excellent and available farmland that it was. This mistaken',
+                    'belief about the nature of those lands caused settlers to avoid the central',
+                    'plains for years, pushing westward migration all the way to the Pacific coast',
+                    'before pioneers finally discovered the true agricultural wealth of the Midwest.'
+                ]
+            }
+        };
+
+        /**
+         * =====================================================================
+         * 2. APPLICATION STATE MANAGEMENT
+         * =====================================================================
+         */
+        const state = {
+            view: 'home', // 'home' | 'directions' | 'test' | 'result'
+            mode: 'full', // 'full' (Simulasi ETS 3 Sesi) | 'practice' (Latihan Per Sesi)
+            selectedSectionIds: ['listening', 'structure', 'reading'],
+            currentSectionIdx: 0,
+            currentQuestionIdx: 0,
+            
+            // User responses: { [questionId]: optionIndex }
+            answers: {},
+            // Flagged questions: { [questionId]: true }
+            flagged: {},
+            // Listening playback count: { [questionId]: count }
+            audioPlayCount: {},
+            showTranscript: false,
+            isSpeaking: false,
+
+            // Timer state
+            timerSeconds: 0,
+            timerInterval: null,
+            timerPaused: false,
+
+            // Mobile UI toggles
+            mobilePaletteOpen: false,
+            reviewFilter: 'all' // 'all' | 'correct' | 'incorrect'
+        };
+
+        /**
+         * =====================================================================
+         * 3. UTILITY & HELPER FUNCTIONS
+         * =====================================================================
+         */
+        function getCurrentSection() {
+            const secId = state.selectedSectionIds[state.currentSectionIdx];
+            return ETS_CONFIG.sections.find(s => s.id === secId);
+        }
+
+        function getCurrentQuestions() {
+            const sec = getCurrentSection();
+            return sec ? QUESTION_BANK[sec.id] : [];
+        }
+
+        function formatTime(totalSeconds) {
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        /**
+         * Konversi Raw Score ke ETS TOEFL ITP Scaled Score (31 - 68 per section)
+         * dan Total Score (310 - 677).
+         */
+        function calculateETSScore(correct, total) {
+            if (total === 0) return 31;
+            const ratio = correct / total;
+            // Skala TOEFL ITP berkisar antara 31 (0%) hingga 68 (100%)
+            // Menggunakan kurva interpolasi realistis mendekati tabel konversi ETS
+            const scaled = Math.round(31 + (ratio * 37));
+            return Math.min(68, Math.max(31, scaled));
+        }
+
+        function getCEFRLevel(totalScore) {
+            if (totalScore >= 627) return { level: 'C1', label: 'Effective Operational Proficiency', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' };
+            if (totalScore >= 543) return { level: 'B2', label: 'Vantage / Upper Intermediate', color: 'text-blue-700 bg-blue-50 border-blue-200' };
+            if (totalScore >= 460) return { level: 'B1', label: 'Threshold / Intermediate', color: 'text-amber-700 bg-amber-50 border-amber-200' };
+            if (totalScore >= 337) return { level: 'A2', label: 'Waystage / Elementary', color: 'text-orange-700 bg-orange-50 border-orange-200' };
+            return { level: 'A1', label: 'Breakthrough / Beginner', color: 'text-slate-700 bg-slate-100 border-slate-200' };
+        }
+
+        /**
+         * Custom Modal System (Tanpa alert/confirm bawaan browser)
+         */
+        function showModal({ title, message, type = 'info', confirmText = 'Ya, Lanjutkan', cancelText = 'Batal', onConfirm = null }) {
+            const modal = document.getElementById('custom-modal');
+            const titleEl = document.getElementById('modal-title');
+            const msgEl = document.getElementById('modal-message');
+            const iconBox = document.getElementById('modal-icon-container');
+            const actionsEl = document.getElementById('modal-actions');
+
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+
+            if (type === 'warning') {
+                iconBox.className = 'w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600';
+                iconBox.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`;
+            } else if (type === 'danger') {
+                iconBox.className = 'w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-red-50 text-red-600';
+                iconBox.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+            } else {
+                iconBox.className = 'w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600';
+                iconBox.innerHTML = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+            }
+
+            actionsEl.innerHTML = '';
+            if (cancelText) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors';
+                cancelBtn.textContent = cancelText;
+                cancelBtn.onclick = closeModal;
+                actionsEl.appendChild(cancelBtn);
+            }
+
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = type === 'danger'
+                ? 'px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 shadow-sm transition-colors'
+                : 'px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors';
+            confirmBtn.textContent = confirmText;
+            confirmBtn.onclick = () => {
+                closeModal();
+                if (onConfirm) onConfirm();
+            };
+            actionsEl.appendChild(confirmBtn);
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        /**
+         * =====================================================================
+         * 4. TIMER ENGINE (ETS STANDARD COUNTDOWN)
+         * =====================================================================
+         */
+        function startSectionTimer(seconds) {
+            stopTimer();
+            state.timerSeconds = seconds;
+            state.timerPaused = false;
+            updateTimerUI();
+
+            state.timerInterval = setInterval(() => {
+                if (state.timerPaused) return;
+
+                state.timerSeconds--;
+                updateTimerUI();
+
+                if (state.timerSeconds <= 0) {
+                    stopTimer();
+                    stopAudio();
+                    showModal({
+                        title: 'Waktu Sesi Habis!',
+                        message: `Waktu standar ETS untuk sesi ${getCurrentSection().title} telah berakhir. Jawaban Anda disimpan secara otomatis.`,
+                        type: 'warning',
+                        confirmText: 'Lanjut ke Tahap Berikutnya',
+                        cancelText: null,
+                        onConfirm: () => advanceSectionOrFinish()
+                    });
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (state.timerInterval) {
+                clearInterval(state.timerInterval);
+                state.timerInterval = null;
+            }
+        }
+
+        function updateTimerUI() {
+            const timerEl = document.getElementById('ets-timer-display');
+            const timerBox = document.getElementById('ets-timer-box');
+            if (!timerEl || !timerBox) return;
+
+            timerEl.textContent = formatTime(Math.max(0, state.timerSeconds));
+
+            // Peringatan visual sesuai sisa waktu
+            if (state.timerSeconds <= 60) {
+                timerBox.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-mono text-sm sm:text-base font-bold border bg-red-50 text-red-700 border-red-200 animate-pulse';
+            } else if (state.timerSeconds <= 300) {
+                timerBox.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-mono text-sm sm:text-base font-bold border bg-amber-50 text-amber-700 border-amber-200';
+            } else {
+                timerBox.className = 'flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-mono text-sm sm:text-base font-bold border bg-slate-100 text-slate-800 border-slate-200';
+            }
+        }
+
+        /**
+         * =====================================================================
+         * 5. WEB SPEECH API (SIMULASI AUDIO LISTENING)
+         * =====================================================================
+         */
+        function stopAudio() {
+            try {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                }
+            } catch (e) {
+                console.warn('SpeechSynthesis cancel warning:', e);
+            }
+            state.isSpeaking = false;
+            const waveEl = document.getElementById('audio-waveform');
+            if (waveEl) waveEl.classList.add('wave-paused');
+            const btnText = document.getElementById('audio-btn-text');
+            if (btnText) btnText.textContent = 'Putar Audio Soal';
+        }
+
+        function playListeningAudio(question) {
+            if (!('speechSynthesis' in window)) {
+                showModal({
+                    title: 'Browser Tidak Mendukung Audio TTS',
+                    message: 'Browser Anda tidak mendukung Web Speech API. Silakan gunakan Chrome/Edge/Safari atau buka Transkrip di Mode Latihan.',
+                    type: 'warning',
+                    confirmText: 'Mengerti',
+                    cancelText: null
+                });
+                return;
+            }
+
+            // Pada Full Simulation Mode (standar ETS), audio hanya boleh diputar 1 kali
+            const played = state.audioPlayCount[question.id] || 0;
+            if (state.mode === 'full' && played >= 1 && !state.isSpeaking) {
+                showModal({
+                    title: 'Aturan Standar ETS',
+                    message: 'Pada mode Simulasi Penuh TOEFL ITP, rekaman audio hanya diperbolehkan diputar satu kali (1x) per soal.',
+                    type: 'info',
+                    confirmText: 'Mengerti',
+                    cancelText: null
+                });
+                return;
+            }
+
+            if (state.isSpeaking) {
+                stopAudio();
+                return;
+            }
+
+            stopAudio();
+            state.audioPlayCount[question.id] = played + 1;
+            state.isSpeaking = true;
+
+            // Update UI tombol & waveform
+            const waveEl = document.getElementById('audio-waveform');
+            if (waveEl) waveEl.classList.remove('wave-paused');
+            const btnText = document.getElementById('audio-btn-text');
+            if (btnText) btnText.textContent = 'Hentikan Audio';
+
+            const voices = window.speechSynthesis.getVoices();
+            const enVoices = voices.filter(v => v.lang.startsWith('en'));
+
+            let idx = 0;
+            const speakNext = () => {
+                if (!state.isSpeaking || idx >= question.audioScript.length) {
+                    stopAudio();
+                    // Re-render badge jumlah putar jika masih di halaman tes
+                    if (state.view === 'test') {
+                        const playStatus = document.getElementById('audio-play-status');
+                        if (playStatus) {
+                            const count = state.audioPlayCount[question.id] || 0;
+                            playStatus.textContent = state.mode === 'full'
+                                ? (count >= 1 ? 'Sudah diputar (1/1 — Standar ETS)' : 'Kesempatan putar: 1x')
+                                : `Diputar ${count}x (Mode Latihan: Tanpa Batas)`;
+                        }
+                    }
+                    return;
+                }
+
+                const line = question.audioScript[idx];
+                const utter = new SpeechSynthesisUtterance(line.text);
+                utter.lang = 'en-US';
+                utter.rate = 0.96;
+
+                // Variasi pitch untuk membedakan narator, pria, dan wanita
+                if (line.role === 'woman') {
+                    utter.pitch = 1.15;
+                    if (enVoices[1]) utter.voice = enVoices[1];
+                } else if (line.role === 'man') {
+                    utter.pitch = 0.88;
+                    if (enVoices[0]) utter.voice = enVoices[0];
+                } else {
+                    utter.pitch = 1.0;
+                    if (enVoices[2] || enVoices[0]) utter.voice = enVoices[2] || enVoices[0];
+                }
+
+                utter.onend = () => {
+                    idx++;
+                    setTimeout(speakNext, 350);
+                };
+                utter.onerror = () => {
+                    stopAudio();
+                };
+
+                window.speechSynthesis.speak(utter);
+            };
+
+            speakNext();
+        }
+
+        /**
+         * =====================================================================
+         * 6. NAVIGATION & TEST FLOW CONTROLLERS
+         * =====================================================================
+         */
+        function startExam(mode, sectionId = null) {
+            stopTimer();
+            stopAudio();
+
+            state.mode = mode;
+            state.answers = {};
+            state.flagged = {};
+            state.audioPlayCount = {};
+            state.showTranscript = false;
+            state.currentSectionIdx = 0;
+            state.currentQuestionIdx = 0;
+            state.reviewFilter = 'all';
+
+            if (mode === 'full') {
+                state.selectedSectionIds = ['listening', 'structure', 'reading'];
+            } else {
+                state.selectedSectionIds = [sectionId];
+            }
+
+            state.view = 'directions';
+            render();
+        }
+
+        function beginCurrentSection() {
+            const sec = getCurrentSection();
+            state.currentQuestionIdx = 0;
+            state.showTranscript = false;
+            state.view = 'test';
+            render();
+            startSectionTimer(sec.etsDurationSeconds);
+        }
+
+        function selectAnswer(questionId, optionIndex) {
+            state.answers[questionId] = optionIndex;
+            render();
+        }
+
+        function toggleFlag(questionId) {
+            state.flagged[questionId] = !state.flagged[questionId];
+            render();
+        }
+
+        function goToQuestion(idx) {
+            const qs = getCurrentQuestions();
+            if (idx >= 0 && idx < qs.length) {
+                stopAudio();
+                state.currentQuestionIdx = idx;
+                state.showTranscript = false;
+                state.mobilePaletteOpen = false;
+                render();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        function confirmFinishSection() {
+            const sec = getCurrentSection();
+            const qs = getCurrentQuestions();
+            const answeredCount = qs.filter(q => state.answers[q.id] !== undefined).length;
+            const unanswered = qs.length - answeredCount;
+            const isLastSection = state.currentSectionIdx >= state.selectedSectionIds.length - 1;
+
+            showModal({
+                title: isLastSection ? 'Selesaikan Ujian & Lihat Skor?' : `Akhiri Sesi ${sec.shortTitle}?`,
+                message: unanswered > 0
+                    ? `Anda masih memiliki ${unanswered} soal yang belum dijawab pada sesi ini. Sesuai aturan ETS, Anda tidak dapat kembali ke sesi ini setelah melanjutkannya.`
+                    : `Semua ${qs.length} soal pada sesi ini telah terjawab. Lanjutkan sekarang?`,
+                type: unanswered > 0 ? 'warning' : 'info',
+                confirmText: isLastSection ? 'Selesaikan & Hitung Skor' : 'Lanjut Sesi Berikutnya',
+                cancelText: 'Periksa Kembali',
+                onConfirm: () => advanceSectionOrFinish()
+            });
+        }
+
+        function advanceSectionOrFinish() {
+            stopTimer();
+            stopAudio();
+
+            if (state.currentSectionIdx < state.selectedSectionIds.length - 1) {
+                state.currentSectionIdx++;
+                state.currentQuestionIdx = 0;
+                state.view = 'directions';
+                render();
+            } else {
+                state.view = 'result';
+                render();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function confirmExitToHome() {
+            showModal({
+                title: 'Keluar dari Sesi Ujian?',
+                message: 'Progres jawaban dan waktu pada sesi ini akan direset jika Anda kembali ke halaman utama.',
+                type: 'danger',
+                confirmText: 'Ya, Keluar',
+                cancelText: 'Lanjut Mengerjakan',
+                onConfirm: () => {
+                    stopTimer();
+                    stopAudio();
+                    state.view = 'home';
+                    render();
+                }
+            });
+        }
+
+        /**
+         * =====================================================================
+         * 7. VIEW RENDERERS
+         * =====================================================================
+         */
+        function render() {
+            const app = document.getElementById('app');
+            if (state.view === 'home') {
+                app.innerHTML = renderHomeView();
+            } else if (state.view === 'directions') {
+                app.innerHTML = renderDirectionsView();
+            } else if (state.view === 'test') {
+                app.innerHTML = renderTestView();
+                updateTimerUI();
+            } else if (state.view === 'result') {
+                app.innerHTML = renderResultView();
+            }
+        }
+
+        /**
+         * VIEW 1: LANDING / DASHBOARD PAGE
+         */
+        function renderHomeView() {
+            const totalSampleQs = QUESTION_BANK.listening.length + QUESTION_BANK.structure.length + QUESTION_BANK.reading.length;
+
+            return `
+                <!-- Top Navigation -->
+                <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+                    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-700 to-indigo-900 flex items-center justify-center text-white font-extrabold text-sm shadow-sm">
+                                ITP
+                            </div>
+                            <div>
+                                <h1 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight leading-none">TOEFL ITP® Prep Studio</h1>
+                                <p class="text-[11px] font-medium text-slate-500 mt-0.5">ETS Standard Simulation & Question Bank</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                Ready for Vercel Deploy
+                            </span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Hero Section -->
+                <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-12">
+                    <div class="bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
+                        <div class="absolute -right-16 -top-16 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                        <div class="absolute -left-16 -bottom-16 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+                        
+                        <div class="relative z-10 max-w-3xl">
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-blue-200 text-xs font-semibold mb-4">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Standar Resmi ETS: 115 Menit • 140 Soal • Skala 310–677
+                            </div>
+                            <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight leading-tight">
+                                Latihan & Simulasi Bank Soal TOEFL ITP® Berbasis Web
+                            </h2>
+                            <p class="mt-3 sm:mt-4 text-slate-300 text-sm sm:text-base leading-relaxed">
+                                Preview interaktif ini dilengkapi countdown timer per sesi sesuai standar ETS, simulasi audio Listening, format Written Expression bergaris bawah, tampilan Reading split-screen, serta konversi skor otomatis.
+                            </p>
+
+                            <div class="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3">
+                                <button onclick="startExam('full')" class="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm sm:text-base shadow-lg shadow-blue-900/40 transition-all active:scale-[0.98]">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    Mulai Full Simulation (Standar ETS)
+                                </button>
+                                <a href="#section-practice" class="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-semibold text-sm sm:text-base transition-all">
+                                    Pilih Latihan Per Sesi
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Info Banner -->
+                    <div class="mt-6 p-4 rounded-2xl bg-blue-50/80 border border-blue-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-blue-950">Mode Preview Bank Soal (${totalSampleQs} Soal Sampel Longman Aktif)</p>
+                                <p class="text-xs sm:text-sm text-blue-800/80 mt-0.5">
+                                    Countdown timer tetap menggunakan durasi resmi ETS (35 / 25 / 55 menit). Anda dapat menambahkan hingga 140+ soal pada objek <code class="px-1.5 py-0.5 rounded bg-blue-100 font-mono text-xs">QUESTION_BANK</code> sebelum deploy ke Vercel.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section Practice Cards -->
+                    <section id="section-practice" class="mt-10">
+                        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-5">
+                            <div>
+                                <h3 class="text-xl font-extrabold text-slate-900">Struktur Tes & Latihan Per Sesi</h3>
+                                <p class="text-sm text-slate-500 mt-0.5">Pilih satu sesi untuk latihan fokus (mendukung ulang audio & transkrip di Listening).</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            ${ETS_CONFIG.sections.map((sec, idx) => {
+                                const sampleCount = QUESTION_BANK[sec.id].length;
+                                const colors = [
+                                    { badge: 'bg-indigo-50 text-indigo-700 border-indigo-200', btn: 'hover:border-indigo-400 hover:text-indigo-700' },
+                                    { badge: 'bg-blue-50 text-blue-700 border-blue-200', btn: 'hover:border-blue-400 hover:text-blue-700' },
+                                    { badge: 'bg-teal-50 text-teal-700 border-teal-200', btn: 'hover:border-teal-400 hover:text-teal-700' }
+                                ][idx];
+
+                                return `
+                                    <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                                        <div>
+                                            <div class="flex items-center justify-between gap-2 mb-4">
+                                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold border ${colors.badge}">
+                                                    Section ${sec.number}
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 text-xs font-semibold text-slate-500">
+                                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                                    ${sec.etsDurationSeconds / 60} Menit (ETS)
+                                                </span>
+                                            </div>
+                                            <h4 class="text-lg font-bold text-slate-900">${sec.title}</h4>
+                                            <p class="text-sm text-slate-600 mt-2 leading-relaxed">${sec.description}</p>
+                                            
+                                            <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+                                                <div class="bg-slate-50 rounded-xl p-2.5">
+                                                    <span class="text-slate-400 block">Standar ETS</span>
+                                                    <span class="font-bold text-slate-800">${sec.etsQuestionCount} Soal</span>
+                                                </div>
+                                                <div class="bg-slate-50 rounded-xl p-2.5">
+                                                    <span class="text-slate-400 block">Sampel Preview</span>
+                                                    <span class="font-bold text-blue-700">${sampleCount} Soal Siap</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button onclick="startExam('practice', '${sec.id}')" class="mt-5 w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white font-semibold text-sm text-slate-700 ${colors.btn} transition-all flex items-center justify-center gap-2">
+                                            Latihan ${sec.shortTitle}
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                        </button>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </section>
+                </main>
+
+                <footer class="bg-white border-t border-slate-200 py-5 text-center text-xs text-slate-500">
+                    TOEFL ITP® Prep Studio Preview • Format waktu & penskoran mengacu pada standar ETS Paper-Based / ITP.
+                </footer>
+            `;
+        }
+
+        /**
+         * VIEW 2: SECTION DIRECTIONS (PRE-START SCREEN ALA ETS)
+         */
+        function renderDirectionsView() {
+            const sec = getCurrentSection();
+            const qs = getCurrentQuestions();
+
+            return `
+                <div class="min-h-screen flex items-center justify-center p-4 sm:p-6 bg-slate-100">
+                    <div class="bg-white rounded-3xl shadow-xl border border-slate-200 max-w-2xl w-full overflow-hidden">
+                        <div class="bg-slate-900 text-white px-6 sm:px-8 py-6 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-blue-300">
+                                    ${state.mode === 'full' ? `Full Simulation • Sesi ${state.currentSectionIdx + 1} dari ${state.selectedSectionIds.length}` : 'Section Practice Mode'}
+                                </span>
+                                <h2 class="text-xl sm:text-2xl font-extrabold mt-1">Section ${sec.number}: ${sec.title}</h2>
+                            </div>
+                            <div class="text-right shrink-0 ml-4">
+                                <span class="text-xs text-slate-400 block">Alokasi Waktu</span>
+                                <span class="text-lg font-mono font-bold text-emerald-400">${sec.etsDurationSeconds / 60}:00</span>
+                            </div>
+                        </div>
+
+                        <div class="p-6 sm:p-8">
+                            <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200">
+                                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide mb-2">Directions (Petunjuk Pengerjaan)</h3>
+                                <p class="text-sm text-slate-700 leading-relaxed">${sec.directions}</p>
+                            </div>
+
+                            <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                <div class="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200">
+                                    <div class="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-slate-500">Jumlah Soal (Preview)</div>
+                                        <div class="font-bold text-slate-900">${qs.length} Soal <span class="font-normal text-slate-400">(ETS: ${sec.etsQuestionCount})</span></div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-3 p-3.5 rounded-xl border border-slate-200">
+                                    <div class="w-9 h-9 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs text-slate-500">Timer Countdown</div>
+                                        <div class="font-bold text-slate-900">${sec.etsDurationSeconds / 60} Menit Otomatis</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            ${sec.id === 'listening' ? `
+                                <div class="mt-4 p-3.5 rounded-xl bg-indigo-50 border border-indigo-200 text-xs sm:text-sm text-indigo-900 flex items-start gap-2.5">
+                                    <svg class="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+                                    <span>Pastikan volume perangkat Anda aktif. ${state.mode === 'full' ? 'Pada Mode Simulasi Penuh, audio setiap soal hanya dapat diputar <strong>1 kali</strong>.' : 'Pada Mode Latihan, Anda dapat memutar ulang audio dan melihat transkrip.'}</span>
+                                </div>
+                            ` : ''}
+
+                            <div class="mt-8 flex flex-col-reverse sm:flex-row items-center justify-between gap-3">
+                                <button onclick="confirmExitToHome()" class="w-full sm:w-auto px-5 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+                                    Kembali ke Beranda
+                                </button>
+                                <button onclick="beginCurrentSection()" class="w-full sm:w-auto px-7 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2">
+                                    Mulai Sesi Sekarang
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * VIEW 3: ACTIVE TEST INTERFACE (LISTENING / STRUCTURE / READING)
+         */
+        function renderTestView() {
+            const sec = getCurrentSection();
+            const qs = getCurrentQuestions();
+            const q = qs[state.currentQuestionIdx];
+            const selectedAns = state.answers[q.id];
+            const isFlagged = !!state.flagged[q.id];
+            const answeredCount = qs.filter(item => state.answers[item.id] !== undefined).length;
+            const progressPct = Math.round((answeredCount / qs.length) * 100);
+            const isLastQ = state.currentQuestionIdx === qs.length - 1;
+
+            return `
+                <!-- Sticky Exam Header -->
+                <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+                    <div class="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2">
+                        <!-- Left: Exit & Section Info -->
+                        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                            <button onclick="confirmExitToHome()" title="Keluar" class="p-2 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                            </button>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs sm:text-sm font-extrabold text-slate-900 truncate">Sec ${sec.number}: ${sec.shortTitle}</span>
+                                    <span class="hidden md:inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold">${q.part}</span>
+                                </div>
+                                <div class="text-[11px] text-slate-500">Soal ${state.currentQuestionIdx + 1} dari ${qs.length} • ${answeredCount} terjawab</div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Countdown Timer & Mobile Palette Button -->
+                        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                            <div id="ets-timer-box" class="flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 rounded-xl font-mono text-sm sm:text-base font-bold border bg-slate-100 text-slate-800 border-slate-200">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span id="ets-timer-display">${formatTime(state.timerSeconds)}</span>
+                            </div>
+
+                            <button onclick="state.mobilePaletteOpen = !state.mobilePaletteOpen; render();" class="lg:hidden p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50" aria-label="Navigasi Soal">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                            </button>
+
+                            <button onclick="confirmFinishSection()" class="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold transition-colors">
+                                ${state.currentSectionIdx < state.selectedSectionIds.length - 1 ? 'Selesai Sesi' : 'Kumpulkan'}
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Thin Progress Bar -->
+                    <div class="w-full h-1 bg-slate-100">
+                        <div class="h-1 bg-blue-600 transition-all duration-300" style="width: ${progressPct}%"></div>
+                    </div>
+                </header>
+
+                <!-- Mobile Question Palette Drawer -->
+                ${state.mobilePaletteOpen ? `
+                    <div class="lg:hidden bg-white border-b border-slate-200 p-4 shadow-md">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Navigasi Nomor Soal</span>
+                            <button onclick="state.mobilePaletteOpen = false; render();" class="text-xs font-semibold text-blue-600">Tutup</button>
+                        </div>
+                        ${renderPaletteGrid(qs)}
+                    </div>
+                ` : ''}
+
+                <!-- Main Workspace -->
+                <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-5 sm:py-6 flex flex-col lg:flex-row gap-6">
+                    
+                    <!-- Question Content Area -->
+                    <div class="flex-1 min-w-0 flex flex-col">
+                        ${sec.id === 'reading' ? renderReadingSplitLayout(q, selectedAns, isFlagged) : renderStandardQuestionCard(sec, q, selectedAns, isFlagged)}
+
+                        <!-- Bottom Navigation Controls -->
+                        <div class="mt-5 flex items-center justify-between gap-2 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm">
+                            <button onclick="goToQuestion(${state.currentQuestionIdx - 1})" ${state.currentQuestionIdx === 0 ? 'disabled' : ''} class="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                                <span class="hidden sm:inline">Sebelumnya</span>
+                            </button>
+
+                            <button onclick="toggleFlag('${q.id}')" class="px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-semibold flex items-center gap-1.5 transition-colors ${isFlagged ? 'bg-amber-50 border-amber-300 text-amber-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}">
+                                <svg class="w-4 h-4" fill="${isFlagged ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg>
+                                ${isFlagged ? 'Ditandai' : 'Tandai Ragu'}
+                            </button>
+
+                            ${!isLastQ ? `
+                                <button onclick="goToQuestion(${state.currentQuestionIdx + 1})" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+                                    <span>Selanjutnya</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </button>
+                            ` : `
+                                <button onclick="confirmFinishSection()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+                                    <span>${state.currentSectionIdx < state.selectedSectionIds.length - 1 ? 'Lanjut Sesi Berikutnya' : 'Selesai & Skor'}</span>
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                </button>
+                            `}
+                        </div>
+                    </div>
+
+                    <!-- Desktop Right Sidebar: Question Palette -->
+                    <aside class="hidden lg:block w-72 shrink-0">
+                        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm sticky top-24">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Navigasi Soal</h3>
+                            ${renderPaletteGrid(qs)}
+                            
+                            <div class="mt-5 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-600">
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-blue-600 inline-block"></span> Sudah dijawab</div>
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-amber-400 inline-block"></span> Ditandai ragu-ragu</div>
+                                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-slate-100 border border-slate-300 inline-block"></span> Belum dijawab</div>
+                            </div>
+
+                            <button onclick="confirmFinishSection()" class="mt-5 w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold transition-colors">
+                                ${state.currentSectionIdx < state.selectedSectionIds.length - 1 ? 'Akhiri Sesi Ini' : 'Kumpulkan Jawaban'}
+                            </button>
+                        </div>
+                    </aside>
+                </main>
+            `;
+        }
+
+        function renderPaletteGrid(qs) {
+            return `
+                <div class="grid grid-cols-5 gap-2">
+                    ${qs.map((item, idx) => {
+                        const isCurrent = idx === state.currentQuestionIdx;
+                        const isAns = state.answers[item.id] !== undefined;
+                        const isFlg = !!state.flagged[item.id];
+
+                        let style = 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100';
+                        if (isFlg) {
+                            style = 'bg-amber-100 text-amber-900 border-amber-300 font-bold';
+                        } else if (isAns) {
+                            style = 'bg-blue-600 text-white border-blue-600 font-bold';
+                        }
+                        if (isCurrent) {
+                            style += ' ring-2 ring-offset-2 ring-blue-500';
+                        }
+
+                        return `
+                            <button onclick="goToQuestion(${idx})" class="h-10 rounded-xl border text-xs transition-all ${style}">
+                                ${idx + 1}
+                            </button>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        /**
+         * STANDARD CARD FOR LISTENING & STRUCTURE
+         */
+        function renderStandardQuestionCard(sec, q, selectedAns, isFlagged) {
+            const playCount = state.audioPlayCount[q.id] || 0;
+
+            return `
+                <div class="bg-white rounded-2xl border border-slate-200 p-5 sm:p-7 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100">
+                        <span class="px-3 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold">${q.part}</span>
+                        <span class="text-xs font-semibold text-slate-400">Nomor ${state.currentQuestionIdx + 1}</span>
+                    </div>
+
+                    ${sec.id === 'listening' ? `
+                        <!-- Interactive Audio Player Box -->
+                        <div class="mt-5 p-4 sm:p-5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="flex items-center gap-4 w-full sm:w-auto">
+                                <button onclick='playListeningAudio(QUESTION_BANK.listening[${state.currentQuestionIdx}])' class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm flex items-center gap-2 shrink-0 transition-colors shadow-md">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    <span id="audio-btn-text">${state.isSpeaking ? 'Hentikan Audio' : 'Putar Audio Soal'}</span>
+                                </button>
+                                <div id="audio-waveform" class="flex items-center gap-1 h-7 ${state.isSpeaking ? '' : 'wave-paused'}">
+                                    <span class="wave-bar w-1 bg-blue-400 rounded-full"></span>
+                                    <span class="wave-bar w-1 bg-blue-300 rounded-full"></span>
+                                    <span class="wave-bar w-1 bg-blue-400 rounded-full"></span>
+                                    <span class="wave-bar w-1 bg-blue-300 rounded-full"></span>
+                                    <span class="wave-bar w-1 bg-blue-400 rounded-full"></span>
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-300 w-full sm:w-auto text-left sm:text-right">
+                                <div id="audio-play-status" class="font-medium">
+                                    ${state.mode === 'full'
+                                        ? (playCount >= 1 ? 'Sudah diputar (1/1 — Standar ETS)' : 'Kesempatan putar: 1x')
+                                        : `Diputar ${playCount}x (Mode Latihan: Tanpa Batas)`}
+                                </div>
+                                ${state.mode === 'practice' ? `
+                                    <button onclick="state.showTranscript = !state.showTranscript; render();" class="mt-1 text-blue-300 hover:text-blue-200 underline font-semibold">
+                                        ${state.showTranscript ? 'Sembunyikan Transkrip' : 'Tampilkan Transkrip (Latihan)'}
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        ${state.mode === 'practice' && state.showTranscript ? `
+                            <div class="mt-3 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm space-y-1.5">
+                                <div class="font-bold text-slate-500 uppercase text-[11px] mb-1">Audio Script</div>
+                                ${q.audioScript.map(line => `
+                                    <p class="text-slate-700"><strong class="capitalize text-slate-900">(${line.role}):</strong> ${line.text}</p>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    ` : ''}
+
+                    <!-- Question Stem -->
+                    <div class="mt-6">
+                        ${q.type === 'written_expression' ? `
+                            <p class="text-xs sm:text-sm text-slate-500 mb-3">${q.prompt}</p>
+                            <div class="text-base sm:text-lg text-slate-900 leading-loose bg-slate-50 p-4 sm:p-5 rounded-2xl border border-slate-200">
+                                ${q.segments.map(seg => {
+                                    if (typeof seg === 'string') return `<span>${seg}</span>`;
+                                    return `<span class="we-segment"><span class="we-text">${seg.text}</span><span class="we-label">(${seg.label})</span></span>`;
+                                }).join('')}
+                            </div>
+                        ` : `
+                            <p class="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed">${q.question}</p>
+                        `}
+                    </div>
+
+                    <!-- Answer Choices -->
+                    <div class="mt-6 space-y-3">
+                        ${renderOptionsList(q, selectedAns)}
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * SPLIT-SCREEN LAYOUT FOR READING COMPREHENSION
+         */
+        function renderReadingSplitLayout(q, selectedAns, isFlagged) {
+            const passage = READING_PASSAGES[q.passageId];
+
+            return `
+                <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
+                    <!-- Left: Reading Passage with ETS Line Numbers -->
+                    <div class="xl:col-span-7 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+                        <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                            <span class="text-xs font-bold uppercase tracking-wider text-teal-700">${q.part}</span>
+                            <span class="text-xs font-semibold text-slate-500">${passage.title}</span>
+                        </div>
+                        <div class="p-5 sm:p-6 max-h-[340px] xl:max-h-[540px] overflow-y-auto custom-scroll text-sm sm:text-[15px] leading-7 text-slate-800">
+                            <h4 class="font-bold text-slate-900 text-base mb-3">${passage.title}</h4>
+                            <div class="space-y-0.5 font-normal">
+                                ${passage.lines.map((line, i) => {
+                                    const lineNum = i + 1;
+                                    const showNum = lineNum % 5 === 0 || lineNum === 1;
+                                    return `
+                                        <div class="flex items-start gap-3">
+                                            <span class="w-7 shrink-0 text-right font-mono text-[11px] text-slate-400 select-none pt-0.5">
+                                                ${showNum ? `(${lineNum})` : ''}
+                                            </span>
+                                            <span class="flex-1 whitespace-pre-wrap">${line}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Reading Question & Choices -->
+                    <div class="xl:col-span-5 bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                                <span class="text-xs font-bold text-slate-500 uppercase">Pertanyaan ${state.currentQuestionIdx + 1}</span>
+                                <span class="text-xs text-slate-400">Reading Comprehension</span>
+                            </div>
+                            <p class="mt-4 text-base font-semibold text-slate-900 leading-relaxed">${q.question}</p>
+                            <div class="mt-5 space-y-2.5">
+                                ${renderOptionsList(q, selectedAns)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOptionsList(q, selectedAns) {
+            const letters = ['A', 'B', 'C', 'D'];
+            return q.options.map((opt, idx) => {
+                const isSelected = selectedAns === idx;
+                return `
+                    <button onclick="selectAnswer('${q.id}', ${idx})" class="w-full text-left p-3.5 sm:p-4 rounded-xl border-2 transition-all flex items-start gap-3.5 ${isSelected ? 'border-blue-600 bg-blue-50/70 shadow-sm' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}">
+                        <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-extrabold shrink-0 mt-0.5 transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}">
+                            ${letters[idx]}
+                        </span>
+                        <span class="text-sm sm:text-[15px] ${isSelected ? 'font-semibold text-blue-950' : 'text-slate-700'} leading-snug pt-0.5">
+                            ${opt}
+                        </span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        /**
+         * VIEW 4: ETS SCORE REPORT & ANSWER REVIEW (PEMBAHASAN)
+         */
+        function renderResultView() {
+            // Hitung skor per section yang dikerjakan
+            const sectionResults = state.selectedSectionIds.map(secId => {
+                const sec = ETS_CONFIG.sections.find(s => s.id === secId);
+                const qs = QUESTION_BANK[secId];
+                let correct = 0;
+                qs.forEach(q => {
+                    if (state.answers[q.id] === q.correctIndex) correct++;
+                });
+                const scaled = calculateETSScore(correct, qs.length);
+                return { sec, qs, correct, total: qs.length, scaled };
+            });
+
+            // Hitung Total TOEFL ITP Score (310 - 677)
+            let totalScaledScore = 0;
+            if (sectionResults.length === 3) {
+                const sum = sectionResults.reduce((acc, r) => acc + r.scaled, 0);
+                totalScaledScore = Math.min(677, Math.round((sum * 10) / 3));
+            } else {
+                // Estimasi proyeksi total jika hanya mengerjakan 1 sesi latihan
+                totalScaledScore = Math.min(677, sectionResults[0].scaled * 10);
+            }
+
+            const cefr = getCEFRLevel(totalScaledScore);
+            const allQuestions = sectionResults.flatMap(r => r.qs.map(q => ({ ...q, sectionTitle: r.sec.shortTitle })));
+            const filteredQuestions = allQuestions.filter(q => {
+                const isCorrect = state.answers[q.id] === q.correctIndex;
+                if (state.reviewFilter === 'correct') return isCorrect;
+                if (state.reviewFilter === 'incorrect') return !isCorrect;
+                return true;
+            });
+
+            const letters = ['A', 'B', 'C', 'D'];
+
+            return `
+                <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+                    <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <div class="w-8 h-8 rounded-lg bg-slate-900 text-white font-extrabold text-xs flex items-center justify-center">ITP</div>
+                            <span class="font-bold text-slate-900 text-sm sm:text-base">Laporan Skor & Pembahasan</span>
+                        </div>
+                        <button onclick="state.view = 'home'; render();" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold transition-colors">
+                            Kembali ke Beranda
+                        </button>
+                    </div>
+                </header>
+
+                <main class="max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
+                    <!-- ETS Score Card -->
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden">
+                        <div class="bg-gradient-to-r from-slate-900 to-blue-950 p-6 sm:p-8 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                            <div>
+                                <span class="text-xs font-bold uppercase tracking-wider text-blue-300">
+                                    ${state.mode === 'full' ? 'Official-Style TOEFL ITP® Score Estimate' : 'Estimasi Skor Sesi Latihan'}
+                                </span>
+                                <h2 class="text-2xl sm:text-3xl font-extrabold mt-1">Hasil Evaluasi Anda</h2>
+                                <p class="text-slate-300 text-xs sm:text-sm mt-1">
+                                    Dihitung menggunakan formula skala ETS: <code class="text-blue-200">((S1 + S2 + S3) × 10) / 3</code>
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-5 bg-white/10 border border-white/15 rounded-2xl px-6 py-4 backdrop-blur-sm">
+                                <div class="text-center">
+                                    <span class="text-[11px] uppercase tracking-wider text-blue-200 block">Total Score</span>
+                                    <span class="text-4xl sm:text-5xl font-black tracking-tight text-white">${totalScaledScore}</span>
+                                    <span class="text-[11px] text-slate-300 block mt-0.5">Skala 310 – 677</span>
+                                </div>
+                                <div class="h-12 w-px bg-white/20"></div>
+                                <div>
+                                    <span class="inline-block px-2.5 py-0.5 rounded-md text-xs font-extrabold border ${cefr.color}">CEFR ${cefr.level}</span>
+                                    <div class="text-xs text-slate-200 mt-1.5 max-w-[140px] leading-snug">${cefr.label}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section Breakdown -->
+                        <div class="p-6 sm:p-8 grid grid-cols-1 sm:grid-cols-${sectionResults.length} gap-4">
+                            ${sectionResults.map(r => `
+                                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-500">Section ${r.sec.number}</div>
+                                        <div class="font-bold text-slate-900 text-sm sm:text-base">${r.sec.shortTitle}</div>
+                                        <div class="text-xs text-slate-500 mt-1">Benar: <strong class="text-slate-800">${r.correct}/${r.total}</strong></div>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="text-[10px] uppercase font-bold text-slate-400 block">Scaled</span>
+                                        <span class="text-2xl font-black text-blue-700">${r.scaled}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Review & Explanations -->
+                    <div class="mt-8">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                            <h3 class="text-lg font-extrabold text-slate-900">Pembahasan & Kunci Jawaban</h3>
+                            <div class="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 self-start">
+                                ${[
+                                    { id: 'all', label: 'Semua' },
+                                    { id: 'correct', label: 'Benar' },
+                                    { id: 'incorrect', label: 'Salah' }
+                                ].map(tab => `
+                                    <button onclick="state.reviewFilter = '${tab.id}'; render();" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${state.reviewFilter === tab.id ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'}">
+                                        ${tab.label}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            ${filteredQuestions.length === 0 ? `
+                                <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center text-sm text-slate-500">
+                                    Tidak ada soal pada kategori filter ini.
+                                </div>
+                            ` : filteredQuestions.map((q, i) => {
+                                const userAns = state.answers[q.id];
+                                const isCorrect = userAns === q.correctIndex;
+
+                                return `
+                                    <div class="bg-white rounded-2xl border ${isCorrect ? 'border-emerald-200' : 'border-red-200'} p-5 shadow-sm">
+                                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                                            <div class="flex items-center gap-2">
+                                                <span class="px-2.5 py-0.5 rounded-md text-xs font-bold ${isCorrect ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}">
+                                                    ${isCorrect ? '✓ Benar' : '✕ Salah'}
+                                                </span>
+                                                <span class="text-xs font-semibold text-slate-500">${q.sectionTitle} • ${q.id}</span>
+                                            </div>
+                                            <span class="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-md">${q.skill}</span>
+                                        </div>
+
+                                        <p class="text-sm font-semibold text-slate-900">
+                                            ${q.type === 'written_expression'
+                                                ? q.segments.map(s => typeof s === 'string' ? s : `<u>${s.text}</u> (${s.label})`).join('')
+                                                : q.question}
+                                        </p>
+
+                                        <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                            <div class="p-2.5 rounded-xl ${isCorrect ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-900'}">
+                                                <span class="font-bold block">Jawaban Anda:</span>
+                                                ${userAns !== undefined ? `(${letters[userAns]}) ${q.options[userAns]}` : 'Tidak dijawab'}
+                                            </div>
+                                            <div class="p-2.5 rounded-xl bg-emerald-50 text-emerald-900">
+                                                <span class="font-bold block">Kunci Jawaban:</span>
+                                                (${letters[q.correctIndex]}) ${q.options[q.correctIndex]}
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm text-slate-700 leading-relaxed">
+                                            <strong class="text-slate-900">Pembahasan:</strong> ${q.explanation}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </main>
+            `;
+        }
+
+        /**
+         * =====================================================================
+         * 8. INITIALIZE APPLICATION
+         * =====================================================================
+         */
+        window.addEventListener('DOMContentLoaded', () => {
+            // Preload Web Speech voices
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+            }
+            render();
+        });
+    </script>
+</body>
+</html>
+
+```
 
